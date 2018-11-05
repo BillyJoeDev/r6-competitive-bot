@@ -11,6 +11,7 @@ namespace ALTDiscordBot
         static void Main(string[] args)
         {
             Console.WriteLine("Mesms");
+            Console.ReadLine();
         }
     }
 }
