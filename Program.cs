@@ -4,7 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Windows.Forms;
 using System.Threading.Tasks;
+using System.Drawing;
+using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace ALTDiscordBot
 {
@@ -15,9 +19,14 @@ namespace ALTDiscordBot
 
         static void Main(string[] args)
         {
+            NotifyIcon tray = new NotifyIcon();
             Console.Title = "ALT Bot";
             Console.CursorVisible = false;
             Console.ForegroundColor = ConsoleColor.Green;
+            tray.Icon = new Icon("Resources\\ALTLogo.ico");
+            tray.Text = "ALT Discord Bot";
+            tray.Visible = true;
+
             new Program().StartASync().GetAwaiter().GetResult();
         }
         

@@ -36,6 +36,18 @@ namespace ALTDiscordBot.Modules
             await Helpers.SendLog(Context, embed);
         }
 
+        [Command("dc")]
+        [RequireUserPermission(GuildPermission.ManageGuild)]
+        public async Task SetDevelopmentChannel(SocketGuildChannel chnl)
+        {
+            var config = ConfigClass.GetConfig(Context.Guild.Id) ?? ConfigClass.CreateConfig(Context.Guild.Id);
+            var embed = new EmbedBuilder().WithDescription($"Set this server's development showcase channel to #{chnl}.").WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3)).WithFooter(Utilities.GetFormattedLocaleMsg("CommandFooter", Context.User.Username));
+            config.AnnouncementsChannel = chnl.Id;
+            ConfigClass.SaveConfig();
+
+            await Helpers.SendLog(Context, embed);
+        }
+
         [Command("lc")]
         [RequireUserPermission(GuildPermission.ManageGuild)]
         public async Task SetLoggingChannel(SocketGuildChannel chnl)

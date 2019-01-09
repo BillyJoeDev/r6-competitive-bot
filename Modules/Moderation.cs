@@ -29,6 +29,31 @@ namespace ALTDiscordBot.Modules
             }
         }
 
+        [Command("devblog")]
+        public async Task DevBlog([Remainder]string message)
+        {
+            var config = ConfigClass.GetOrCreateConfig(Context.Guild.Id);
+            if (Helpers.UserHasRole(Context, config.ModRole) || Helpers.UserHasRole(Context, config.AdminRole) || config.OwnerId == Context.User.Id)
+            {
+                var embed = new EmbedBuilder();
+                embed.WithTitle("Development Blog");
+                embed.WithColor(new Color(0, 255, 0));
+                embed.WithFooter("Posted by " + Context.User.Username);
+                embed.WithUrl(message);
+                embed.WithThumbnailUrl("https://i.imgur.com/n9oDl3g.png");
+                embed.WithAuthor(author =>
+                {
+                    author
+                        .WithName("Arma-Life")
+                        .WithUrl("https://forums.arma-life.com");
+                });
+
+                await Context.Message.DeleteAsync();
+                SocketTextChannel channel = Helpers.GetChannelById(config.DevShowcaseChannel);
+                await channel.SendMessageAsync("", false, embed);
+            }
+        }
+
         [Command("clear")]
         [RequireUserPermission(ChannelPermission.ManageMessages)]
         [RequireBotPermission(ChannelPermission.ManageMessages)]

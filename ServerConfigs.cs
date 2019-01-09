@@ -18,6 +18,7 @@ namespace ALTDiscordBot
         public ulong WelcomeChannel { get; set; }
         public ulong AnnouncementsChannel { get; set; }
         public ulong LoggingChannel { get; set; }
+        public ulong DevShowcaseChannel { get; set; }
         public string WelcomeMessage { get; set; }
         public string LeavingMessage { get; set; }
         public int WelcomeColour1 { get; set; }
@@ -83,6 +84,7 @@ namespace ALTDiscordBot
                 WelcomeChannel = 0,
                 AnnouncementsChannel = 0,
                 LoggingChannel = 0,
+                DevShowcaseChannel = 0,
                 WelcomeMessage = string.Empty,
                 LeavingMessage = string.Empty,
                 WelcomeColour1 = 112,
