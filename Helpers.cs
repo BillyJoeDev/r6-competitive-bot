@@ -8,7 +8,7 @@ using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 
-namespace ALTDiscordBot
+namespace R6DiscordBot
 {
     class Helpers
     {
@@ -26,14 +26,6 @@ namespace ALTDiscordBot
                 await ctx.Channel.SendMessageAsync(msg);
             else
                 await ctx.Channel.SendMessageAsync(msg, false, embed);
-        }
-
-        public static async Task SendLog(SocketCommandContext ctx, EmbedBuilder embed = null, string msg = "")
-        {
-            var config = ConfigClass.GetConfig(ctx.Guild.Id) ?? ConfigClass.CreateConfig(ctx.Guild.Id);
-            SocketTextChannel channel = Helpers.GetChannelById(config.LoggingChannel);
-
-            await channel.SendMessageAsync("", false, embed);
         }
 
         public static IEnumerable<SocketRole> GetRole(SocketCommandContext ctx, string roleName)

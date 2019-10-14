@@ -7,31 +7,21 @@ using System.IO;
 using Discord;
 using Discord.Commands;
 using Newtonsoft.Json;
+using Discord.WebSocket;
 
-namespace ALTDiscordBot
+namespace R6DiscordBot
 {
     public class ConfigBase
     {
         public ulong ServerId { get; set; }
         public ulong OwnerId { get; set; }
         public string CommandPrefix { get; set; }
-        public ulong WelcomeChannel { get; set; }
-        public ulong AnnouncementsChannel { get; set; }
-        public ulong LoggingChannel { get; set; }
-        public ulong DevShowcaseChannel { get; set; }
-        public string WelcomeMessage { get; set; }
-        public string LeavingMessage { get; set; }
-        public int WelcomeColour1 { get; set; }
-        public int WelcomeColour2 { get; set; }
-        public int WelcomeColour3 { get; set; }
         public int EmbedColour1 { get; set; }
         public int EmbedColour2 { get; set; }
         public int EmbedColour3 { get; set; }
-        public bool Antilink { get; set; }
-        public bool Verified { get; set; }
-        public ulong ModRole { get; set; }
-        public ulong AdminRole { get; set; }
-        public List<ulong> AntilinkIgnoredChannels { get; set; }
+        public ulong TenManChannelID { get; set; }
+        public ulong TenManMessageID { get; set; }
+        public string TenManJoinQueEmote { get; set; }
     }
 
     public static class ConfigClass
@@ -60,11 +50,11 @@ namespace ALTDiscordBot
             return config;
         }
 
-        public static ConfigBase GetOrCreateConfig(ulong id)
+        public static ConfigBase GetOrCreateConfig(ulong id, ulong ownerid)
         {
             var result = Config.FirstOrDefault(x => x.ServerId == id);
 
-            var config = result ?? CreateConfig(id);
+            var config = result ?? CreateConfig(id,ownerid);
             return config;
         }
 
@@ -74,28 +64,21 @@ namespace ALTDiscordBot
             File.WriteAllText(filePath, json);
         }
 
-        public static ConfigBase CreateConfig(ulong id)
+        public static ConfigBase CreateConfig(ulong id, ulong ownerid)
         {
             var newconfig = new ConfigBase
             {
                 ServerId = id,
-                OwnerId = 0,
+                OwnerId = ownerid,
                 CommandPrefix = "!",
-                WelcomeChannel = 0,
-                AnnouncementsChannel = 0,
-                LoggingChannel = 0,
-                DevShowcaseChannel = 0,
-                WelcomeMessage = string.Empty,
-                LeavingMessage = string.Empty,
-                WelcomeColour1 = 112,
-                WelcomeColour2 = 0,
-                WelcomeColour3 = 251,
                 EmbedColour1 = 112,
                 EmbedColour2 = 0,
                 EmbedColour3 = 251,
-                Antilink = false,
-                Verified = false
+                TenManChannelID = 0,
+                TenManMessageID = 0,
+                TenManJoinQueEmote = ""
             };
+
             Config.Add(newconfig);
             SaveConfig();
             return newconfig;

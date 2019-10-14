@@ -1,8 +1,9 @@
 {
-	  "SayCommandFooter": "Message from {0}",
-	  "NotEnoughPermission": "Sorry {0}, you don't have permission for that command.",
-	  "KickUserMsg": "User {0} has been kicked by {1}!",
-	  "BanText": "User {0} has been banned by {1}!",
-	  "UnbanText": "User {0} has been unbanned by {1}!",
-	  "CommandFooter": "Command from {0}",
+  "SayCommandFooter": "Message from {0}",
+  "NotEnoughPermission": "Sorry {0}, you don't have permission for that command.",
+  "KickUserMsg": "User {0} has been kicked by {1}!",
+  "BanText": "User {0} has been banned by {1}!",
+  "UnbanText": "User {0} has been unbanned by {1}!",
+  "BannedWordText": "{0} has said '{1}' having the banned word {2} in the #{3} ",
+  "CommandFooter": "Command from {0}"
 }

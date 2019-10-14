@@ -10,7 +10,7 @@ using Discord.Commands;
 using Discord.WebSocket;
 using System.Threading;
 
-namespace ALTDiscordBot
+namespace R6DiscordBot
 {
     class Utilities
     {

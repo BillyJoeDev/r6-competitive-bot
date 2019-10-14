@@ -3,126 +3,117 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Net;
 using Discord;
 using Discord.Commands;
+using Discord.WebSocket;
+using System.Net.NetworkInformation;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Json;
+using System.IO;
+using System.Runtime.Serialization.Json;
+using Newtonsoft.Json;
+using System.Timers;
+using Newtonsoft.Json.Linq;
+using System.Net.Sockets;
 
-namespace ALTDiscordBot.Modules
+namespace R6DiscordBot.Modules
 {
     public class Misc : ModuleBase<SocketCommandContext>
     {
-        static Random rnd = new Random();
-        List<string> travisjokeslist = new List<string>(new string[] { "you have a weird beard", "your mexican", "go hop the border again" });
-
-        [Command("help")]
-        public async Task HelpCommand()
+        [RequireOwner]
+        [Command("setchannel")]
+        public async Task setchannel(SocketGuildChannel chnl)
         {
-            var config = ConfigClass.GetOrCreateConfig(Context.Guild.Id);
-            var embed = new EmbedBuilder();
-            embed.WithTitle("ALT Bot | Commands");
-            embed.AddField(config.CommandPrefix + "serverinfo", "Get current discord servers information.");
-            embed.AddField(config.CommandPrefix + "google [what to google]", "Get google search link to anything.");
-            embed.AddField(config.CommandPrefix + "travisjoke", "Get a good joke to laugh to.");
-            embed.AddField(config.CommandPrefix + "ping", "Get your current ping.");
-            embed.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
+            var config = ConfigClass.GetOrCreateConfig(Context.Guild.Id, Context.Guild.OwnerId);
+            await Context.Message.DeleteAsync();
+            config.TenManChannelID = chnl.Id;
+            ConfigClass.SaveConfig();
+        }
 
-            var dm = await Context.User.GetOrCreateDMChannelAsync();
-            await dm.SendMessageAsync("", false, embed);
+        [RequireOwner]
+        [Command("setemote")]
+        public async Task setemote(string joinqueueemote)
+        {
+            var config = ConfigClass.GetOrCreateConfig(Context.Guild.Id, Context.Guild.OwnerId);
+            await Context.Message.DeleteAsync();
+            config.TenManJoinQueEmote = joinqueueemote;
+            ConfigClass.SaveConfig();
+        }
 
-            if (Helpers.UserHasRole(Context, config.ModRole) || Helpers.UserHasRole(Context, config.AdminRole) || Context.User.Id == config.OwnerId)
+        [RequireOwner]
+        [Command("setuptenmans")]
+        public async Task setuptenmans()
+        {
+            var config = ConfigClass.GetOrCreateConfig(Context.Guild.Id,Context.Guild.OwnerId);
+            var embedMessage = new EmbedBuilder();
+            await Context.Message.DeleteAsync();
+
+            embedMessage.WithTitle("**R6 Bot | 10 Mans Queue**");
+            embedMessage.WithDescription("**Currently in Queue: NONE**");
+            embedMessage.AddField("JOIN/EXIT QUEUE:", config.TenManJoinQueEmote);
+            embedMessage.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
+
+            SocketTextChannel channel = Helpers.GetChannelById(config.TenManChannelID);
+            var message = await channel.SendMessageAsync("", false, embedMessage);
+            await message.AddReactionAsync(new Emoji(config.TenManJoinQueEmote));
+
+            config.TenManMessageID = message.Id;
+            ConfigClass.SaveConfig();
+        }
+
+        [Command("verify")]
+        public async Task verify(string region, string playerid)
+        {
+            var config = ConfigClass.GetOrCreateConfig(Context.Guild.Id, Context.Guild.OwnerId);
+            var embedMessage = new EmbedBuilder();
+            await Context.Message.DeleteAsync();
+
+            RootPlayerInfo root;
+            using (var httpClient = new HttpClient())
             {
-                var embedmod = new EmbedBuilder();
-                embedmod.WithTitle("ALT Bot | Mod Commands");
-                embedmod.AddField(config.CommandPrefix + "announce [message]", "Announce message to announcment channel, for the whole server to see.");
-                embedmod.AddField(config.CommandPrefix + "clear [amount]", "Clear # amount of lines of chat.");
-                embedmod.AddField(config.CommandPrefix + "kick [@player] [reason]", "Kick a user from the discord server.");
-                embedmod.AddField(config.CommandPrefix + "ban [@player] [reason]", "Ban a user from the discord server.");
-                embedmod.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
-
-                var dm1 = await Context.User.GetOrCreateDMChannelAsync();
-                await dm1.SendMessageAsync("", false, embedmod);
+                var json = await httpClient.GetStringAsync("https://r6tab.com/api/player.php?p_id=" + playerid);
+                root = JsonConvert.DeserializeObject<RootPlayerInfo>(json);
             }
 
-            if (Helpers.UserHasRole(Context, config.AdminRole) || Context.User.Id == config.OwnerId)
+            int rank = 0;
+            switch (region.ToLower())
             {
-                var embedadmin = new EmbedBuilder();
-                embedadmin.WithTitle("ALT Bot | Admin Commands");
-                embedadmin.AddField(config.CommandPrefix + "wc [#channel]", "Set welcome channel, this chanel will be used for welcoming new users, etc.");
-                embedadmin.AddField(config.CommandPrefix + "ac [#channel]", "Set announcements channel, this chanel will be used for announcing messages, etc.");
-                embedadmin.AddField(config.CommandPrefix + "lc [#channel]", "Set logging channel, this chanel will be used for logging messages sent by bot.");
-                embedadmin.AddField(config.CommandPrefix + "servername [servername]", "Sets the discord servers name.");
-                embedadmin.AddField(config.CommandPrefix + "rename [@player] [new name]", "Rename a user to change how they are displayed to other users.");
-                embedadmin.AddField(config.CommandPrefix + "serverprefix [prefix]", "Change the bots prefix for how its called by other users.");
-                embedadmin.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
+                case "na":
+                    rank = root.p_NA_rank;
+                    break;
+                case "eu":
+                    rank = root.p_EU_rank;
+                    break;
+                case "as":
+                    rank = root.p_AS_rank;
+                    break;
+                default:
+                    var embed = new EmbedBuilder();
+                    embed.WithTitle("R6 Competitive | Error!");
+                    embed.AddField("Region","We could not verify that region, please make sure its a proper region.");
+                    embed.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
 
-                var dm2 = await Context.User.GetOrCreateDMChannelAsync();
-                await dm2.SendMessageAsync("", false, embedadmin);
+                    var dm1 = await Context.User.GetOrCreateDMChannelAsync();
+                    await dm1.SendMessageAsync("", false, embed);
+                    return;
             }
 
-            if (Context.User.Id == config.OwnerId)
-            {
-                var embedowner = new EmbedBuilder();
-                embedowner.WithTitle("ALT Bot | Owner Commands");
-                embedowner.AddField(config.CommandPrefix + "createconfig", "Create discord servers config if it dosen't exsist.");
-                embedowner.AddField(config.CommandPrefix + "config", "Display the discord servers config and its details.");
-                embedowner.AddField(config.CommandPrefix + "setgame [game name]", "Set bots current game that its playing.");
-                embedowner.AddField(config.CommandPrefix + "status [dnd-idle-online-offline]", "Sets the discord bots status.");
-                embedowner.AddField(config.CommandPrefix + "modrole [role name]", "Set the mod role of the server.");
-                embedowner.AddField(config.CommandPrefix + "adminrole [role name]", "Set the admin role of the server.");
-                embedowner.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
+            string role = "Unranked/Low Rank";
+            if (rank == 14 || rank == 15 || rank == 16) role = "Gold";
+            if (rank == 17 || rank == 18 || rank == 19) role = "Platinum";
+            if (rank == 20) role = "Diamond";
 
-                var dm3 = await Context.User.GetOrCreateDMChannelAsync();
-                await dm3.SendMessageAsync("", false, embedowner);
-            }
-        }
+            string name = root.p_name;
 
-        [Command("serverinfo")]
-        [Alias("sinfo")]
-        public async Task ServerInformationCommand()
-        {
-            var embed = new EmbedBuilder();
-            embed.WithTitle("Server Information");
-            embed.AddField("Name", Context.Guild.Name);
-            embed.AddField("Created", Context.Guild.CreatedAt.UtcDateTime);
-            embed.AddField("Users", Context.Guild.Users.Count); ;
-            embed.AddField("Region", Context.Guild.VoiceRegionId);
-            embed.WithThumbnailUrl(Context.Guild.IconUrl);
-            embed.WithFooter("Requested by " + Context.User.Username);
-            embed.WithColor(new Color(0, 255, 0));
+            SocketGuildUser user = Context.Message.Author as SocketGuildUser;
+            var rankToAdd = Context.Guild.Roles.FirstOrDefault(x => x.Name == role);
+            var regionToAdd = Context.Guild.Roles.FirstOrDefault(x => x.Name == region.ToUpper());
 
-            await ReplyAsync("", false, embed);
-        }
-
-        [Command("google")]
-        public async Task Google([Remainder] string search)
-        {
-            search = search.Replace(' ', '+');
-            var searchUrl = $"https://google.com/search?q={search}";
-            var embed = new EmbedBuilder();
-            embed.WithDescription(searchUrl);
-            embed.WithFooter("Google Search by " + Context.User.Username);
-            embed.WithColor(new Color(0,255,0));
-            embed.WithThumbnailUrl(
-                "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/2000px-Google_%22G%22_Logo.svg.png");
-
-            await ReplyAsync("", false, embed);
-        }
-
-        [Command("travisjoke")]
-        public async Task travisjoke()
-        {
-            int r = rnd.Next(travisjokeslist.Count);
-            await ReplyAsync(Context.User.Mention + ", " + (string)travisjokeslist[r]);
-        }
-
-        [Command("ping")]
-        public async Task ping()
-        {
-            await ReplyAsync(Context.User.Mention + ", your ping is: " + Context.Client.Latency);
-        }
-
-        public static string ConvertBoolean(bool boolean)
-        {
-            return boolean ? "**On**" : "**Off**";
+            await user.AddRoleAsync(rankToAdd);
+            await user.AddRoleAsync(regionToAdd);
+            await user.ModifyAsync(u => { u.Nickname = name; });
         }
     }
 }
