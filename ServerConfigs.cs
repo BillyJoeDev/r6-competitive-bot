@@ -73,10 +73,7 @@ namespace R6DiscordBot
                 CommandPrefix = "!",
                 EmbedColour1 = 112,
                 EmbedColour2 = 0,
-                EmbedColour3 = 251,
-                TenManChannelID = 0,
-                TenManMessageID = 0,
-                TenManJoinQueEmote = ""
+                EmbedColour3 = 251
             };
 
             Config.Add(newconfig);

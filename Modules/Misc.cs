@@ -22,47 +22,6 @@ namespace R6DiscordBot.Modules
 {
     public class Misc : ModuleBase<SocketCommandContext>
     {
-        [RequireOwner]
-        [Command("setchannel")]
-        public async Task setchannel(SocketGuildChannel chnl)
-        {
-            var config = ConfigClass.GetOrCreateConfig(Context.Guild.Id, Context.Guild.OwnerId);
-            await Context.Message.DeleteAsync();
-            config.TenManChannelID = chnl.Id;
-            ConfigClass.SaveConfig();
-        }
-
-        [RequireOwner]
-        [Command("setemote")]
-        public async Task setemote(string joinqueueemote)
-        {
-            var config = ConfigClass.GetOrCreateConfig(Context.Guild.Id, Context.Guild.OwnerId);
-            await Context.Message.DeleteAsync();
-            config.TenManJoinQueEmote = joinqueueemote;
-            ConfigClass.SaveConfig();
-        }
-
-        [RequireOwner]
-        [Command("setuptenmans")]
-        public async Task setuptenmans()
-        {
-            var config = ConfigClass.GetOrCreateConfig(Context.Guild.Id,Context.Guild.OwnerId);
-            var embedMessage = new EmbedBuilder();
-            await Context.Message.DeleteAsync();
-
-            embedMessage.WithTitle("**R6 Bot | 10 Mans Queue**");
-            embedMessage.WithDescription("**Currently in Queue: NONE**");
-            embedMessage.AddField("JOIN/EXIT QUEUE:", config.TenManJoinQueEmote);
-            embedMessage.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
-
-            SocketTextChannel channel = Helpers.GetChannelById(config.TenManChannelID);
-            var message = await channel.SendMessageAsync("", false, embedMessage);
-            await message.AddReactionAsync(new Emoji(config.TenManJoinQueEmote));
-
-            config.TenManMessageID = message.Id;
-            ConfigClass.SaveConfig();
-        }
-
         [Command("checkplayer")]
         [Alias("cp")]
         public async Task checkplayer(string playername)
