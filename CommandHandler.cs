@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 using System.Reflection;
 using System.Threading;
 using R6DiscordBot.Modules;
+using System.Net.Http;
+using Newtonsoft.Json;
 
 namespace R6DiscordBot
 {
@@ -146,7 +148,38 @@ namespace R6DiscordBot
 
         private async Task MessageReceived(SocketMessage s)
         {
-            var msg = s as SocketUserMessage;
+            SocketUserMessage message = s as SocketUserMessage;
+
+            if (message == null)
+                return;
+
+            SocketCommandContext context = new SocketCommandContext(_client, message);
+            if (!context.IsPrivate)
+            {
+                await HandleCommands(message);
+            } else
+            {
+                if (message.Author.IsBot) return;
+
+                await HandleDMS(message,context);
+            }
+        }
+
+        private async Task HandleDMS(SocketUserMessage s, SocketCommandContext context)
+        {
+            if (s == null) return;
+
+            var embed = new EmbedBuilder();
+            embed.WithTitle("**R6 Competitive | Error!**");
+            embed.AddField("No Functionality", "Please use the discord to interact with me!");
+            embed.WithColor(new Color(112, 0, 251));
+
+            var dm = await s.Author.GetOrCreateDMChannelAsync();
+            await dm.SendMessageAsync("", false, embed);
+        }
+
+        private async Task HandleCommands(SocketUserMessage msg)
+        {
             if (msg == null) return;
             
             var context = new SocketCommandContext(_client, msg);

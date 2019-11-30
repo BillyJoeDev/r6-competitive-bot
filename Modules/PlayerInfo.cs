@@ -6,6 +6,13 @@ using System.Threading.Tasks;
 
 namespace R6DiscordBot.Modules
 {
+    public class Users
+    {
+        public string PlayerName { get; set; }
+        public string PlayerID { get; set; }
+        public ulong DiscordID { get; set; }
+    }
+
     public class Social
     {
         public string twitter { get; set; }

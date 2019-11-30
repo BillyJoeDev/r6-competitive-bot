@@ -26,7 +26,6 @@ namespace R6DiscordBot
             tray.Icon = new Icon("Resources\\R6Logo.ico");
             tray.Text = "R6 Competitive Discord Bot";
             tray.Visible = true;
-
             new Program().StartASync().GetAwaiter().GetResult();
         }
 
@@ -52,6 +51,7 @@ namespace R6DiscordBot
             await _client.SetGameAsync("R6 Competitive Bot by Travis Butts");
             _handler = new CommandHandler();
             await _handler.InitializeAsync(_client);
+            Helpers.UpdateRanks();
             await Task.Delay(-1);
         }
 
