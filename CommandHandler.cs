@@ -32,6 +32,31 @@ namespace R6DiscordBot
             _client.MessageReceived += MessageReceived;
             _client.ReactionAdded += OnReactionAdded;
             _client.ReactionRemoved += OnReactionRemoved;
+
+            /*
+            _client.GuildMemberUpdated += async (before, after) =>
+            {
+                if (before.Id == 138425412907696128 || before.Id == 443914966089728003)
+                {
+                    // Check if the user was offline, and now no longer is
+                    if ((before.Status == UserStatus.Offline || before.Status == UserStatus.Invisible) && (after.Status != UserStatus.Offline || after.Status != UserStatus.Invisible))
+                    {
+                        // Find some channel to send the message to
+                        var channel = Helpers.GetChannelById(633153541707399178);
+                        var user = _client.GetUser(443914966089728003);
+
+                        if (after.Id == 443914966089728003)
+                        {
+                            user = _client.GetUser(138425412907696128);
+                        }
+
+
+                       
+                        await channel.SendMessageAsync($"{user.Mention} {after.Username} has come online!");
+                    };
+                };                
+            };
+            */
         }
 
         private async Task OnReactionAdded(Cacheable<IUserMessage, ulong> cache, ISocketMessageChannel channel, SocketReaction reaction)
@@ -145,6 +170,7 @@ namespace R6DiscordBot
                 }
             }
         }
+
 
         private async Task MessageReceived(SocketMessage s)
         {
