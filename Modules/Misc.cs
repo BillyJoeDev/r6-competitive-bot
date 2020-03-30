@@ -17,88 +17,151 @@ using Newtonsoft.Json;
 using System.Timers;
 using Newtonsoft.Json.Linq;
 using System.Net.Sockets;
+using System.Globalization;
 
 namespace R6DiscordBot.Modules
 {
     public class Misc : ModuleBase<SocketCommandContext>
     {
+        public static System.Drawing.Color HexToColor(string hexString)
+        {
+            if (hexString.IndexOf('x') != -1)
+                hexString = hexString.Replace("0x", "");
+
+            int r, g, b = 0;
+
+            r = int.Parse(hexString.Substring(0, 2), NumberStyles.AllowHexSpecifier);
+            g = int.Parse(hexString.Substring(2, 2), NumberStyles.AllowHexSpecifier);
+            b = int.Parse(hexString.Substring(4, 2), NumberStyles.AllowHexSpecifier);
+
+            return System.Drawing.Color.FromArgb(r, g, b);
+        }
+
         [Command("checkplayer")]
         [Alias("cp")]
-        public async Task checkplayer(string playername)
+        public async Task checkplayer(string playername, string region)
         {
             var config = ConfigClass.GetOrCreateConfig(Context.Guild.Id, Context.Guild.OwnerId);
             var embedMessage = new EmbedBuilder();
             await Context.Message.DeleteAsync();
 
-            RootPlayerSearch root;
+            PlayerDiscord root;
             using (var httpClient = new HttpClient())
             {
-                var json = await httpClient.GetStringAsync("https://r6tab.com/api/search.php?platform=uplay&search=" + playername);
-                root = JsonConvert.DeserializeObject<RootPlayerSearch>(json);
+                var json = await httpClient.GetStringAsync("https://r6.apitab.com/discord?q=r6tab+" + playername + "+" + region + "+uplay&u=unix");
+                root = JsonConvert.DeserializeObject<PlayerDiscord>(json);
             }
 
             SocketTextChannel channel = Helpers.GetChannelById(Context.Message.Channel.Id);
-            if (root.results.Count == 0)
+            if (root.Id == null)
             {
                 var embedVerified = new EmbedBuilder();
                 embedVerified.WithTitle("R6 Competitive | Error!");
                 embedVerified.AddField("No Players", "We could not find any players with that name.");
                 embedVerified.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
 
-                await channel.SendMessageAsync("", false, embedVerified);
+                await channel.SendMessageAsync("", false, embedVerified.Build());
                 return;
             }
 
+            var color = HexToColor(root.Discord.Color);
             var embedResult = new EmbedBuilder();
-            embedResult.WithTitle($"R6 Competitive | {root.results[0].p_name}");
-            embedResult.AddField("Player Level:", root.results[0].p_level);
-            embedResult.AddField("Player Rank:", Helpers.GetRank(Convert.ToInt32(root.results[0].p_currentrank), Convert.ToInt32(root.results[0].p_currentmmr)));
-            embedResult.AddField("Player Elo:", root.results[0].p_currentmmr);
-            embedResult.AddField("Player KD:", GetKD(root.results[0].kd));
-            embedResult.AddField("Player Platform:", root.results[0].p_platform);
-            embedResult.WithThumbnailUrl(string.Format("https://r6tab.com/images/pngranks/{0}.png", Convert.ToInt32(root.results[0].p_currentrank)));
-            embedResult.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
-            embedResult.WithFooter(Context.User.Username, Context.User.GetAvatarUrl());
+            embedResult.WithTitle($"R6 Competitive | {root.Name}");
 
-            await channel.SendMessageAsync("", false, embedResult);
-        }
+            if (root.Banned)
+                embedResult.AddField("Player BANNED", "The player has been banned.");
 
-        public string GetKD(string kd)
-        {
-            string actualKD = "";
+            embedResult.AddField("Player Level:", root.Level);
+            embedResult.AddField("Player Elo:", root.Discord.Truemmr);
+            embedResult.AddField("Player KD:", root.Discord.Kd);
+            embedResult.AddField("Player Wins:", root.Discord.Wins);
+            embedResult.AddField("Player Losses:", root.Discord.Losses);
+            embedResult.AddField("Player WL Percentage:", root.Discord.Wl);
+            embedResult.WithThumbnailUrl("https://cdn.tab.one/r6/images/ranks/?rank=" + root.Discord.Rank + "&champ=" + root.Discord.Champ);
+            embedResult.WithFooter(root.Name, root.Avatar.ToString());
+            embedResult.WithColor(new Color(color.R, color.B, color.G));
 
-            actualKD = string.Format("{0,0:N2}", Int32.Parse(kd) / 100.0);
-            return actualKD;
+            await channel.SendMessageAsync("", false, embedResult.Build());
         }
 
         [Command("verify")]
-        public async Task verify(string region, string playerid)
+        public async Task verify(string playerid)
         {
             var config = ConfigClass.GetOrCreateConfig(Context.Guild.Id, Context.Guild.OwnerId);
             var embedMessage = new EmbedBuilder();
+            SocketGuildUser user = Context.Message.Author as SocketGuildUser;
             await Context.Message.DeleteAsync();
 
-            Users exsist = Helpers.PlayerExsist(playerid);
-            if (exsist != null)
+            UsersBase usercheck = UsersClass.GetUser(playerid);
+            if (usercheck != null)
             {
                 var embedVerified = new EmbedBuilder();
                 embedVerified.WithTitle("R6 Competitive | Error!");
-                embedVerified.AddField("Verification Error", "There seems to be a user already verified with this player id!");
+                embedVerified.AddField("Verification Error", "The player you have requested is already linked to another account.");
                 embedVerified.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
 
                 var dm2 = await Context.User.GetOrCreateDMChannelAsync();
-                await dm2.SendMessageAsync("", false, embedVerified);
+                await dm2.SendMessageAsync("", false, embedVerified.Build());
                 return;
             }
 
-            RootPlayerInfo root;
-            using (var httpClient = new HttpClient())
+            UsersBase usercheck2 = UsersClass.GetUserID(user.Id);
+            if (usercheck2 != null)
             {
-                var json = await httpClient.GetStringAsync("https://r6tab.com/api/player.php?p_id=" + playerid);
-                root = JsonConvert.DeserializeObject<RootPlayerInfo>(json);
+                var embedVerified = new EmbedBuilder();
+                embedVerified.WithTitle("R6 Competitive | Error!");
+                embedVerified.AddField("Verification Error", "You are already verified to another account.");
+                embedVerified.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
+
+                var dm2 = await Context.User.GetOrCreateDMChannelAsync();
+                await dm2.SendMessageAsync("", false, embedVerified.Build());
+                return;
             }
 
-            if (Helpers.UserHasRole(Context, 633415554354380833) || Helpers.UserHasRole(Context, 633415704082645034) || Helpers.UserHasRole(Context, 633415881443115058))
+            PlayerInfo root;
+            using (var httpClient = new HttpClient())
+            {
+                var json = await httpClient.GetStringAsync("https://r6.apitab.com/player/" + playerid + "&u=unix");
+                root = JsonConvert.DeserializeObject<PlayerInfo>(json);
+            }
+
+            if (root.Social.UplayUser == null)
+            {
+                var embedVerified = new EmbedBuilder();
+                embedVerified.WithTitle("R6 Competitive | Error!");
+                embedVerified.AddField("Verification Error", "This account you are trying to verify does not have a uplay account linked.");
+                embedVerified.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
+
+                var dm2 = await Context.User.GetOrCreateDMChannelAsync();
+                await dm2.SendMessageAsync("", false, embedVerified.Build());
+                return;
+            }
+
+            if (root.Social.DiscordId == null)
+            {
+                var embedVerified = new EmbedBuilder();
+                embedVerified.WithTitle("R6 Competitive | Error!");
+                embedVerified.AddField("Verification Error", "This account you are trying to verify does not have a discord account linked.");
+                embedVerified.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
+
+                var dm2 = await Context.User.GetOrCreateDMChannelAsync();
+                await dm2.SendMessageAsync("", false, embedVerified.Build());
+                return;
+            }
+
+            if (Convert.ToUInt64(root.Social.DiscordId) != user.Id)
+            {
+                var embedVerified = new EmbedBuilder();
+                embedVerified.WithTitle("R6 Competitive | Error!");
+                embedVerified.AddField("Verification Error", "This discord account dosen't match the one linked to the account.");
+                embedVerified.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
+
+                var dm2 = await Context.User.GetOrCreateDMChannelAsync();
+                await dm2.SendMessageAsync("", false, embedVerified.Build());
+                return;
+            }
+
+            if (Helpers.UserHasRole(Context, 692966707131580448))
             {
                 var embedVerified = new EmbedBuilder();
                 embedVerified.WithTitle("R6 Competitive | Error!");
@@ -106,147 +169,91 @@ namespace R6DiscordBot.Modules
                 embedVerified.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
 
                 var dm2 = await Context.User.GetOrCreateDMChannelAsync();
-                await dm2.SendMessageAsync("", false, embedVerified);
+                await dm2.SendMessageAsync("", false, embedVerified.Build());
                 return;
             }
 
-            int rank = 0;
-            switch (region.ToLower())
+            string role = root.Ranked.Rankname;
+            var rankToAdd = Context.Guild.Roles.FirstOrDefault(x => x.Name == role);
+            if (rankToAdd == null)
             {
-                case "na":
-                    rank = root.p_NA_rank;
-                    break;
-                case "eu":
-                    rank = root.p_EU_rank;
-                    break;
-                case "as":
-                    rank = root.p_AS_rank;
-                    break;
-                default:
-                    var embed = new EmbedBuilder();
-                    embed.WithTitle("R6 Competitive | Error!");
-                    embed.AddField("Region","We could not verify that region, please make sure its a proper region.");
-                    embed.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
-
-                    var dm1 = await Context.User.GetOrCreateDMChannelAsync();
-                    await dm1.SendMessageAsync("", false, embed);
-                    return;
+                var newrole = Context.Guild.Roles.FirstOrDefault(r => r.Name == "Unranked/Low Rank");
+                await user.AddRoleAsync(newrole);
+            } else
+            {
+                await user.AddRoleAsync(rankToAdd);
             }
 
-            string role = Helpers.GetRole(root.p_name);
-            SocketGuildUser user = Context.Message.Author as SocketGuildUser;
-            var rankToAdd = Context.Guild.Roles.FirstOrDefault(x => x.Name == role);
-            var regionToAdd = Context.Guild.Roles.FirstOrDefault(x => x.Name == region.ToUpper());
+            var removedrole = Context.Guild.Roles.FirstOrDefault(r => r.Name == "UMAD Unverified");
+            var addedrole = Context.Guild.Roles.FirstOrDefault(r => r.Name == "UMAD Verified");
+            await user.RemoveRoleAsync(removedrole);
+            await user.AddRoleAsync(addedrole);
 
-            AddUser(root.p_name, playerid, user.Id);
-            await user.AddRoleAsync(rankToAdd);
-            await user.AddRoleAsync(regionToAdd);
-            await user.ModifyAsync(u => { u.Nickname = root.p_name; });
-        }
-
-        private void AddUser(string name, string pid, ulong id)
-        {
-            // Read existing json data
-            var jsonData = File.ReadAllText(Helpers._path);
-
-            // De-serialize to object or create new list
-            var usersList = JsonConvert.DeserializeObject<List<Users>>(jsonData) ?? new List<Users>();
-
-            // Add any new employees
-            usersList.Add(new Users()
-            {
-                PlayerName = name,
-                PlayerID = pid,
-                DiscordID = id
-            });
-
-            // Update json data string
-            jsonData = JsonConvert.SerializeObject(usersList,Formatting.Indented);
-            System.IO.File.WriteAllText(Helpers._path, jsonData);
+            UsersClass.CreateUser(user.Id, playerid);
+            await user.ModifyAsync(u => { u.Nickname = root.Player.PName; });
         }
 
         [RequireOwner]
-        [Command("verifyplayer")]
-        public async Task verifyplayer(SocketUser player, string region, string playerid)
+        [Command("ownerverify")]
+        public async Task ownerverify(SocketUser player, string playerid)
         {
             var config = ConfigClass.GetOrCreateConfig(Context.Guild.Id, Context.Guild.OwnerId);
             var embedMessage = new EmbedBuilder();
             await Context.Message.DeleteAsync();
 
-            Users exsist = Helpers.PlayerExsist(playerid);
-            if (exsist != null)
+            UsersBase usercheck = UsersClass.GetUser(playerid);
+            if (usercheck != null)
             {
                 var embedVerified = new EmbedBuilder();
                 embedVerified.WithTitle("R6 Competitive | Error!");
-                embedVerified.AddField("Verification Error", "There seems to be a user already verified with this player id!");
+                embedVerified.AddField("Verification Error", "The player you have requested is already linked to another account.");
                 embedVerified.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
 
                 var dm2 = await Context.User.GetOrCreateDMChannelAsync();
-                await dm2.SendMessageAsync("", false, embedVerified);
+                await dm2.SendMessageAsync("", false, embedVerified.Build());
                 return;
             }
 
-            RootPlayerInfo root;
+            UsersBase usercheck2 = UsersClass.GetUserID(player.Id);
+            if (usercheck2 != null)
+            {
+                var embedVerified = new EmbedBuilder();
+                embedVerified.WithTitle("R6 Competitive | Error!");
+                embedVerified.AddField("Verification Error", "They are already verified to another account.");
+                embedVerified.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
+
+                var dm2 = await Context.User.GetOrCreateDMChannelAsync();
+                await dm2.SendMessageAsync("", false, embedVerified.Build());
+                return;
+            }
+
+            PlayerInfo root;
             using (var httpClient = new HttpClient())
             {
-                var json = await httpClient.GetStringAsync("https://r6tab.com/api/player.php?p_id=" + playerid);
-                root = JsonConvert.DeserializeObject<RootPlayerInfo>(json);
+                var json = await httpClient.GetStringAsync("https://r6.apitab.com/player/" + playerid + "&u=unix");
+                root = JsonConvert.DeserializeObject<PlayerInfo>(json);
             }
 
-            int rank = 0;
-            switch (region.ToLower())
-            {
-                case "na":
-                    rank = root.p_NA_rank;
-                    break;
-                case "eu":
-                    rank = root.p_EU_rank;
-                    break;
-                case "as":
-                    rank = root.p_AS_rank;
-                    break;
-                default:
-                    var embed = new EmbedBuilder();
-                    embed.WithTitle("R6 Competitive | Error!");
-                    embed.AddField("Region", "We could not verify that region, please make sure its a proper region.");
-                    embed.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
-
-                    var dm1 = await Context.User.GetOrCreateDMChannelAsync();
-                    await dm1.SendMessageAsync("", false, embed);
-                    return;
-            }
-
-            string role = "Unranked/Low Rank";
-            if (rank == 14 || rank == 15 || rank == 16) role = "Gold";
-            if (rank == 17 || rank == 18 || rank == 19) role = "Platinum";
-            if (rank == 20) role = "Diamond";
-
-            string name = root.p_name;
-            SocketGuildUser user = player as SocketGuildUser;
+            string role = root.Ranked.Rankname;
             var rankToAdd = Context.Guild.Roles.FirstOrDefault(x => x.Name == role);
-            var regionToAdd = Context.Guild.Roles.FirstOrDefault(x => x.Name == region.ToUpper());
+            SocketGuildUser user = player as SocketGuildUser;
+            if (rankToAdd == null)
+            {
+                var newrole = Context.Guild.Roles.FirstOrDefault(r => r.Name == "Unranked/Low Rank");
+                await user.AddRoleAsync(newrole);
+            }
+            else
+            {
+                await user.AddRoleAsync(rankToAdd);
+            }
 
-            AddUser(root.p_name, playerid, user.Id);
-            await user.AddRoleAsync(rankToAdd);
-            await user.AddRoleAsync(regionToAdd);
-            await user.ModifyAsync(u => { u.Nickname = name; });
-        }
+            var removedrole = Context.Guild.Roles.FirstOrDefault(r => r.Name == "UMAD Unverified");
+            var addedrole = Context.Guild.Roles.FirstOrDefault(r => r.Name == "UMAD Verified");
+            await user.RemoveRoleAsync(removedrole);
+            await user.AddRoleAsync(addedrole);
 
-        [Command("joinrequest")]
-        public async Task joinrequest()
-        {
-            var config = ConfigClass.GetOrCreateConfig(Context.Guild.Id, Context.Guild.OwnerId);
-            var embedMessage = new EmbedBuilder();
-            await Context.Message.DeleteAsync();
-
-            var embedResult = new EmbedBuilder();
-            embedResult.WithTitle($"R6 Competitive | Join Request");
-            embedResult.WithDescription($"{Context.User.Mention} has requested to join a game. Follow the reactions below to handle the player.");
-            embedResult.WithThumbnailUrl(Context.User.GetAvatarUrl());
-            embedResult.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
-
-            SocketTextChannel channel = Helpers.GetChannelById(Context.Message.Channel.Id);
-            await channel.SendMessageAsync("", false, embedResult);
+            UsersClass.CreateUser(user.Id, playerid);
+            await user.ModifyAsync(u => { u.Nickname = root.Player.PName; });
         }
     }
 }

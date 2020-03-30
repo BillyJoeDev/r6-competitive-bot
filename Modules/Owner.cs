@@ -23,7 +23,7 @@ namespace R6DiscordBot.Modules
             embed.WithColor(new Color(config.EmbedColour1, config.EmbedColour2, config.EmbedColour3));
 
             SocketTextChannel channel = Helpers.GetChannelById(config.TenManChannelID);
-            await channel.SendMessageAsync("", false, embed);
+            await channel.SendMessageAsync("", false, embed.Build());
 
             config.CommandPrefix = prefix;
             ConfigClass.SaveConfig();

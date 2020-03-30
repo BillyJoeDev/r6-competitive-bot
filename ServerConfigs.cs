@@ -81,4 +81,65 @@ namespace R6DiscordBot
             return newconfig;
         }
     }
+
+    public class UsersBase
+    {
+        public ulong DiscordID { get; set; }
+        public string UplayID { get; set; }
+    }
+
+    public static class UsersClass
+    {
+        private static readonly List<UsersBase> Users = new List<UsersBase>();
+        private static readonly string filePath = "Resources/Users.json";
+
+        static UsersClass()
+        {
+            try
+            {
+                var jsonText = File.ReadAllText(filePath);
+                Users = JsonConvert.DeserializeObject<List<UsersBase>>(jsonText);
+            }
+            catch (Exception)
+            {
+                SaveConfig();
+            }
+        }
+
+        public static UsersBase GetUser(string id)
+        {
+            var result = Users.FirstOrDefault(x => x.UplayID == id);
+            return result;
+        }
+
+        public static UsersBase GetUserID(ulong id)
+        {
+            var result = Users.FirstOrDefault(x => x.DiscordID == id);
+            return result;
+        }
+
+        public static List<UsersBase> GetAllUsers()
+        {
+            return Users;
+        }
+
+        public static void SaveConfig()
+        {
+            var json = JsonConvert.SerializeObject(Users, Formatting.Indented);
+            File.WriteAllText(filePath, json);
+        }
+
+        public static UsersBase CreateUser(ulong discord, string uplay)
+        {
+            var newuser = new UsersBase
+            {
+                DiscordID = discord,
+                UplayID = uplay
+            };
+
+            Users.Add(newuser);
+            SaveConfig();
+            return newuser;
+        }
+    }
 }

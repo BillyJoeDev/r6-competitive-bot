@@ -18,7 +18,6 @@ namespace R6DiscordBot
     class Helpers
     {
         private static readonly DiscordSocketClient _client = Program._client;
-        public static readonly string _path = @"C:\\Users\\admin\\Pictures\\bot\\Resources\\Users.json";
 
         public static EmbedBuilder CreateEmbed(SocketCommandContext ctx, string desc)
         {
@@ -31,7 +30,7 @@ namespace R6DiscordBot
             if (embed == null)
                 await ctx.Channel.SendMessageAsync(msg);
             else
-                await ctx.Channel.SendMessageAsync(msg, false, embed);
+                await ctx.Channel.SendMessageAsync(msg, false, embed.Build());
         }
 
         public static IEnumerable<SocketRole> GetRole(SocketGuild guild, string roleName)
@@ -53,103 +52,21 @@ namespace R6DiscordBot
             return gUser.Roles.Contains(targetRole);
         }
 
-        public static Users PlayerExsist(string id, bool playerid = true)
+        public static Dictionary<string,string> GetRankName(string playerid)
         {
-            var jsonData = File.ReadAllText(_path);
-            var usersList = JsonConvert.DeserializeObject<List<Users>>(jsonData) ?? new List<Users>();
-
-            foreach (Users user in usersList)
-            {
-                if (playerid)
-                {
-                    if (user.PlayerID == id) return user;
-                } else
-                {
-                    if (user.DiscordID == Convert.ToUInt64(id)) return user;
-                }
-            }
-
-            return null;
-        }
-
-        public static string GetRank(int rank, int mmr)
-        {
-            string rankToReturn = "";
-
-            if (rank == 0)
-                rankToReturn = "Unranked";
-            else if (mmr <= 1199)
-                rankToReturn = "Copper 5";
-            else if (mmr <= 1299)
-                rankToReturn = "Copper 4";
-            else if (mmr <= 1399)
-                rankToReturn = "Copper 3";
-            else if (mmr <= 1499)
-                rankToReturn = "Copper 2";
-            else if (mmr <= 1599)
-                rankToReturn = "Copper 1";
-            else if (mmr <= 1699)
-                rankToReturn = "Bronze 5";
-            else if (mmr <= 1799)
-                rankToReturn = "Bronze 4";
-            else if (mmr <= 1899)
-                rankToReturn = "Bronze 3";
-            else if (mmr <= 1999)
-                rankToReturn = "Bronze 2";
-            else if (mmr <= 2099)
-                rankToReturn = "Bronze 1";
-            else if (mmr <= 2199)
-                rankToReturn = "Silver 5";
-            else if (mmr <= 2299)
-                rankToReturn = "Silver 4";
-            else if (mmr <= 2399)
-                rankToReturn = "Silver 3";
-            else if (mmr <= 2499)
-                rankToReturn = "Silver 2";
-            else if (mmr <= 2599)
-                rankToReturn = "Silver 1";
-            else if (mmr <= 2599)
-                rankToReturn = "Silver 1";
-            else if (mmr <= 2799)
-                rankToReturn = "Gold 3";
-            else if (mmr <= 2999)
-                rankToReturn = "Gold 2";
-            else if (mmr <= 3199)
-                rankToReturn = "Gold 1";
-            else if (mmr <= 3599)
-                rankToReturn = "Platinum 3";
-            else if (mmr <= 3999)
-                rankToReturn = "Platinum 2";
-            else if (mmr <= 4399)
-                rankToReturn = "Platinum 1";
-            else if (mmr <= 4999)
-                rankToReturn = "Diamond";
-            else if (mmr >= 5000)
-                rankToReturn = "Champion";
-
-            return rankToReturn;
-        }
-
-        public static string GetRole(string playerName)
-        {
-            string role = "Unranked/Low Rank";
-            RootPlayerSearch root;
+            PlayerInfo root;
             using (var httpClient = new WebClient())
             {
-                var json = httpClient.DownloadString(" https://r6tab.com/api/search.php?platform=uplay&search=" + playerName);
-                root = JsonConvert.DeserializeObject<RootPlayerSearch>(json);
+                var json = httpClient.DownloadString("https://r6.apitab.com/player/" + playerid + "&u=unix");
+                root = JsonConvert.DeserializeObject<PlayerInfo>(json);
             }
 
-            int rank = Convert.ToInt32(root.results[0].p_currentrank);
-            int mmr = Convert.ToInt32(root.results[0].p_currentmmr);
-            string result = GetRank(rank, mmr);
+            Dictionary<string, string> pass = new Dictionary<string, string>()
+            {
+                { root.Ranked.Rankname, root.Player.PName }
+            };
 
-            if (result.Contains("Gold")) role = "Gold";
-            if (result.Contains("Platinum")) role = "Platinum";
-            if (result.Contains("Diamond")) role = "Diamond";
-            if (result.Contains("Champion")) role = "Champion";
-
-            return role;
+            return pass;
         }
 
         public static void RemoveRanks(SocketGuildUser user)
@@ -157,9 +74,14 @@ namespace R6DiscordBot
             List<string> Ranks = new List<string>
             {
                 "Unranked/Low Rank",
-                "Gold",
-                "Platinum",
-                "Diamond"
+                "Gold 3",
+                "Gold 2",
+                "Gold 1",
+                "Platinum 3",
+                "Platinum 2",
+                "Platinum 1",
+                "Diamond",
+                "Champion"
             };
 
             foreach (SocketRole role in user.Roles) {
@@ -175,27 +97,43 @@ namespace R6DiscordBot
             while (true)
             {
                 await Task.Delay(900000);
-                var guild = _client.GetGuild(596406512780574745);
+                var guild = _client.GetGuild(692948711659012157);
 
-                foreach (SocketGuildUser user in guild.Users)
+                List<UsersBase> Users = new List<UsersBase>();
+                Users.Clear();
+
+                foreach (UsersBase user in UsersClass.GetAllUsers())
+                    Users.Add(user);
+
+                foreach (UsersBase user in Users)
                 {
-                    Users exsists = PlayerExsist(user.Id.ToString(), false);
-                    if (exsists == null)
-                        continue;
+                    Console.WriteLine("Updating " + user.UplayID);
+                    SocketGuildUser usersdiscord = guild.GetUser(user.DiscordID);
+
+                    Dictionary<string,string> PlayerInfo = GetRankName(user.UplayID);
+                    var targetRole = guild.Roles.FirstOrDefault(r => r.Name == PlayerInfo.Keys.ElementAt(0));
+                    if (targetRole == null)
+                    {
+                        var role = guild.Roles.FirstOrDefault(r => r.Name == "Unranked/Low Rank");
+                        RemoveRanks(usersdiscord);
+                        await usersdiscord.AddRoleAsync(role);
+                    }
                     else
                     {
-                        string rank = GetRole(exsists.PlayerName);
-                        var targetRole = guild.Roles.FirstOrDefault(r => r.Name == rank);
-                        if (!user.Roles.Contains(targetRole))
+                        if (!usersdiscord.Roles.Contains(targetRole))
                         {
-                            RemoveRanks(user);
-                            await user.AddRoleAsync(targetRole);
+                            RemoveRanks(usersdiscord);
+                            await usersdiscord.AddRoleAsync(targetRole);
                         }
                     }
-                }
+
+                    if (usersdiscord.Nickname != PlayerInfo.Values.ElementAt(0))
+                    {
+                        Console.WriteLine("Updating players name");
+                        await usersdiscord.ModifyAsync(u => { u.Nickname = PlayerInfo.Values.ElementAt(0); });
+                    }
+                }                
             }
         }
-
-
     }
 }
